@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 
 def main():
     # Specify the path to the folder containing the images
-    folder_path = "data/minikenetic_train"
-    # folder_path = "data/minikenetic_test"
+    # folder_path = "data/minikenetic_train"
+    folder_path = "data/minikenetic_test_50"
     # folder_path = "data/celeba_30000_train"
     # folder_path = "data/celeba_test"
     # Define the transformations to be applied to each image
@@ -36,7 +36,7 @@ def main():
     dataset = ImageDataset(folder_path, transform=transform)
 
     # Create a DataLoader to load the images in batches
-    batch_size = 16
+    batch_size = 2
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     model = GatingAutoEncoder()
@@ -44,14 +44,15 @@ def main():
     model = nn.DataParallel(model.cuda())
 
     state = torch.load('resnet101_weights_minikenetic_1_60_60.pth', map_location=lambda storage, loc: storage)
-    model.load_state_dict(state)
+    model.load_state_dict(state, strict=False)
     model.train()
     for param in model.module.encoder1.parameters():
         param.requires_grad = False
     model.module.encoder1.eval()
-    # for param in model.module.decoder1.parameters():
-    #     param.requires_grad = False
-    # model.module.decoder1.eval()
+    for param in model.module.decoder1.parameters():
+        param.requires_grad = False
+    model.module.decoder1.eval()
+
 
 
 
@@ -60,31 +61,20 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 
-    # imgs = torch.stack([img_t for img_t in dataset], dim=3)
-    # a = imgs.view(3, -1)
-    # mean = imgs.view(3, -1).mean(dim=1)
-    # std = imgs.view(3, -1).std(dim=1)
 
     # Iterate over the data loader to access the images
     for epoch in tqdm(range(num_epochs)):
         count = 0
         total_loss = 0
-        real_total_loss = 0
-        total_loss1 = 0
-        total_loss2 = 0
 
         for _, batch in dataloader:
             # Perform operations on the batch of images
             count += 1
             img = batch
             img = img.to(device="cuda")
-            out, _ = model(img)
+            out, gate = model(img)
 
-            # loss1 = criterion(out1, img)
-            # loss2 = criterion(out2, img)
-            # print(exit1)
-            # print("loss1:", loss1)
-            # print("loss2:", loss2)
+
 
             loss = criterion(out, img)
             # loss = loss1 + loss2
